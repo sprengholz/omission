@@ -1,0 +1,1028 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Experiment</title>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+        <script src="js/jspsych.js"></script>
+
+        <script src="js/plugins/jspsych-html-button-response.js"></script>
+        <script src="js/plugins/jspsych-html-keyboard-response.js"></script>
+        <script src="js/plugins/jspsych-image-keyboard-response.js"></script>
+        <script src="js/plugins/jspsych-survey-multi-choice.js"></script>
+        <script src="js/plugins/jspsych-external-html.js"></script>
+        <script src="js/plugins/jspsych-fullscreen.js"></script>
+        <script src="js/plugins/jspsych-instructions.js"></script>
+
+        <script src="js/plugins/jspsych-name.js"></script>
+        <script src="js/plugins/jspsych-faces.js"></script>
+        <script src="js/plugins/jspsych-vignette.js"></script>
+        <script src="js/plugins/jspsych-dichotomous-choice.js"></script>
+        <script src="js/plugins/jspsych-cloze.js"></script>
+        <script src="js/plugins/jspsych-chat.js"></script>
+        <script src="js/plugins/jspsych-word-sequence.js"></script>
+        <script src="js/plugins/jspsych-flyin.js"></script>
+
+        <script src="js/jquery.min.js"></script>
+        <script src="js/anime.min.js"></script>
+        <script src="js/download.min.js"></script>
+
+        <link href="css/jspsych.css" rel="stylesheet" type="text/css"/>
+    </head>
+    <body>
+        <div id="alertOverlay">
+            <span id="alertText"></span>    
+            <button class="alertButton" id="showVignetteButton" onclick="showVignetteOverlay();">Szenario einblenden</button>  
+        </div>
+
+        <div id="vignetteOverlay"></div>
+
+        <div id="experiment" ></div>
+    </body>
+    <script>
+
+        /*
+         * Helper
+         */
+
+        function load(element, file, callback) {
+            var xmlhttp = new XMLHttpRequest();
+            xmlhttp.open("GET", file, true);
+            xmlhttp.onload = function () {
+                if (xmlhttp.status === 200 || xmlhttp.status === 0) {
+                    element.innerHTML = xmlhttp.responseText;
+                    callback();
+                }
+            };
+            xmlhttp.send();
+        }
+
+
+        /*
+         * Alert Overlay Management
+         */
+
+        vignetteHidden = true;
+
+        function showVignetteOverlay()
+        {
+            if (vignetteHidden)
+            {
+                $('html,body').animate({scrollTop: 0}, 250);
+                $('#vignetteOverlay').slideDown();
+                $('#showVignetteButton').text('Szenario ausblenden');
+                vignetteHidden = false;
+            } else
+            {
+                $('#vignetteOverlay').slideUp();
+                $('#showVignetteButton').text('Szenario einblenden');
+                vignetteHidden = true;
+            }
+        }
+
+        function showAlert(message, allowForVignette = false)
+        {
+            $('#alertText').text(message);
+            $('#alertOverlay').fadeIn();
+
+            if (allowForVignette)
+            {
+                $('#showVignetteButton').show();
+
+            } else
+            {
+                $('#showVignetteButton').hide();
+
+        }
+        }
+
+        function clearAlerts()
+        {
+            $('#vignetteOverlay').hide();
+            $('#showVignetteButton').text('Szenario einblenden');
+            $('#alertOverlay').hide();
+
+        }
+
+
+        /*
+         * Global Variables
+         */
+
+        // participant demographics
+        var age;
+        var sex;
+        var orientation;
+
+        // other people
+        var partner = {name: undefined, sex: undefined};
+        var friend = {name: undefined, sex: undefined};
+        var affair = {name: undefined, sex: undefined};
+
+        // questions
+        var questions = ['Was hast du dir angesehen?', 'Womit bist du gefahren?', 'Was gab es zu essen?'];
+
+        // secret and nonsecret answers
+        var secrets = ['Bundestag', 'Trabi', 'Currywurst'];
+        var nonsecrets = ['Reeperbahn', 'Boot', 'Fischbrötchen'];
+
+        // parameters for decisions
+        var decisions = [];
+
+        // parameters for go/nogo tasks
+        var tasks = [];
+
+        // timeline
+        var timeline = [];
+
+
+        /*
+         * Setup Go/NoGo Tasks
+         */
+
+        actions = ['go', 'nogo'];
+
+        for (action of actions)
+        {
+            for (i = 0; i < questions.length; i++)
+            {
+                // first: congruent tasks (each task 8 times)
+
+                for (j = 0; j < 8; j++)
+                {
+                    // secrect target
+                    task = {
+                        action: action,
+                        question: questions[i],
+                        congruency: 'congruent',
+                        secrecy: 'secret',
+                        target: secrets[i]
+                    };
+                    tasks.push(task);
+
+                    // nonsecret target
+                    task = {
+                        action: action,
+                        question: questions[i],
+                        congruency: 'congruent',
+                        secrecy: 'nonsecret',
+                        target: nonsecrets[i]
+                    };
+                    tasks.push(task);
+                }
+
+                // second: incongruent tasks (each task 4 times)
+
+                incongruentSecrets = secrets.slice();
+                incongruentSecrets.splice(i, 1);
+
+                incongruentNonSecrets = nonsecrets.slice();
+                incongruentNonSecrets.splice(i, 1);
+
+                for (j = 0; j < incongruentSecrets.length; j++)
+                {
+                    for (k = 0; k < 4; k++)
+                    {
+                        // secret target
+                        task = {
+                            action: action,
+                            question: questions[i],
+                            congruency: 'incongruent',
+                            secrecy: 'secret',
+                            target: incongruentSecrets[j]
+                        };
+                        tasks.push(task);
+
+                        // nonsecret target
+                        task = {
+                            action: action,
+                            question: questions[i],
+                            congruency: 'incongruent',
+                            secrecy: 'nonsecret',
+                            target: incongruentNonSecrets[j]
+                        };
+                        tasks.push(task);
+                    }
+                }
+            }
+        }
+
+
+        /*
+         * Setup Check Tasks
+         */
+
+        for (i = 0; i < questions.length; i++)
+        {
+            // first: congruent tasks 
+
+            // secrect target
+            task = {
+                action: 'check',
+                question: questions[i],
+                congruency: 'congruent',
+                secrecy: 'secret',
+                target: secrets[i]
+            };
+            tasks.push(task);
+
+            // nonsecret target
+            task = {
+                action: 'check',
+                question: questions[i],
+                congruency: 'congruent',
+                secrecy: 'nonsecret',
+                target: nonsecrets[i]
+            };
+            tasks.push(task);
+        }
+        // second: incongruent tasks
+        task = {
+            action: 'check',
+            question: questions[0],
+            congruency: 'incongruent',
+            secrecy: 'secret',
+            target: secrets[1]
+        };
+        tasks.push(task);
+        task = {
+            action: 'check',
+            question: questions[1],
+            congruency: 'incongruent',
+            secrecy: 'nonsecret',
+            target: nonsecrets[2]
+        };
+        tasks.push(task);
+
+
+
+        /*
+         * Flyin Decisions Briefing
+         */
+        
+        timeline.push({
+            type: 'html-button-response',
+            choices: ["Alles klar"],
+            stimulus: function () {
+                var ihreseine = 'ihre';
+                if (partner.sex === 'male') {
+                    ihreseine = 'seine';
+                }
+                stim = '<div class="instruction"><div class="heading">Deine Entscheidung!</div>';
+                stim += '<div class="smalltext">Stell dir vor, ' + partner.name + ' würde noch weitere Fragen stellen. Dir werden gleich einige dieser Fragen sowie mögliche Antworten gezeigt. Wenn du die auf eine Frage gezeigte Antwort nicht aussprechen möchtest, drücke so schnell wie möglich die <span class="keyButton">Leertaste</span>. Reagierst du nicht, so wird die Antwort '+partner.name+' nach kurzer Zeit erreichen. Das erkennst du daran, dass die Antwort auf '+partner.name+' zufliegt und sich '+ihreseine+' Silhouette schließlich gelb färbt, wenn die Antwort angekommen ist. Bedenke, dass '+partner.name+' nichts von deiner Affäre erfahren darf und bestimmte Antworten unbedingt zurückgeehalten werden sollten.</div>';
+                stim += '<div class="smalltext"><img src="img/symbols/howto_flyin.jpg" style="padding: 15px;"></div>';
+                return stim;
+            },
+            on_finish: function(){
+                $('#experiment').focus();
+                $('#experiment').css('cursor', 'none');
+            }
+        });
+
+        var flyin_instruction = {
+            type: 'html-keyboard-response',
+            stimulus: function () {
+                stim = '<div class="instruction"><div class="heading">Los gehts!</div>';
+                stim += '<div class="smalltext">Positioniere deinen Finger auf der Leertaste. Denke daran, immer dann die Taste zu drücken, wenn eine Antwort erscheint, mit der du nicht auf die von '+partner.name+' gestellte Frage antworten möchtest.</div>';
+                stim += '<div class="smalltext">Drücke nun die <span class="keyButton">Leertaste</span> um zu beginnen.<div>';
+                return stim;
+            },
+            choices: [32]
+        };
+        timeline.push(flyin_instruction);
+
+
+
+        /*
+         * Flyin Decisions Briefing
+         */
+
+        var flyin_instruction = {
+            type: 'html-keyboard-response',
+            stimulus: function () {
+                stim = '<div class="instruction"><div class="heading">Deine Entscheidung!</div>';
+                stim += '<div class="smalltext">Stell dir vor, ' + partner.name + ' hätte noch weitere Fragen gestellt. Ich werde dir gleiche einige dieser Fragen zeigen. Sobald du eine Frage gelesen hast, wird auch eine mögliche Antwort erscheinen. Diese fliegt auf ' + partner.name + 's Silhouette zu und ist angekommen, sobald sich die Silhouette gelb färbt. Reagierst du nicht, so erreicht die Antwort die Silhouette und gilt als von dir ausgesprochen. Wenn du die Antwort zurückhalten möchtest, drücke so schnell wie möglich die <span class="keyButton">Leertaste</span>  Sie wird dann nicht von dir ausgesprochen und erreicht ' + partner.name + ' nicht.</div>';
+                stim += '<img src="img/symbols/howto_flyin.jpg">';
+        
+                stim += '<div class="smalltext">Drücke die <span class="keyButton">Leertaste</span> wenn es losgehen kann.<div>';
+                return stim;
+            },
+            choices: [32]
+        };
+        timeline.push(flyin_instruction);
+
+
+
+
+
+
+
+        /*
+         * Show Welcome Screen
+         */
+
+        timeline.push({
+            type: 'html-button-response',
+            choices: ["Los geht's"],
+            stimulus: '<div class="instruction"><div class="heading">Willkommen!</div> <div class="smalltext">In diesem Experiment geht es um die Organisation einer Affäre. Es ist Teil meiner Masterarbeit am Psychologischen Institut der Friedrich-Schiller-Universität. Wenn du gerade in einer <strong>festen Beziehung</strong> bist und etwa <strong>45 Minuten</strong> Zeit hast, würde ich mich über deine Teilnahme sehr freuen. </div><div class="smalltext"> Und so läuft das Ganze ab: du sollst dich zunächst in ein kleines Szenario hineinversetzen, dazu einige Fragen beantworten und an einem Chat teilnehmen. Anschließend folgt eine Reaktionszeitaufgabe, in der du besonders schnell auf bestimmte Wörter reagieren musst.</div><div class="smalltext">Deine Teilnahme ist <strong>freiwillig</strong> und du kannst das Experiment jederzeit abbrechen. Natürlich werden deine Daten <strong>anonymisiert</strong> und vertraulich behandelt. Falls du Psychologie studierst, erhältst du nach Abschluss des Experiments eine Versuchspersonenstunde. Außerdem werden unter allen Teilnehmern <strong>Amazon-Gutscheine im Wert von 100 Euro</strong> verlost. Nähere Informationen erhältst du am Ende des Experiments. </div><div class="smalltext"> Bei Fragen erreichst du mich jederzeit unter philipp.sprengholz@uni-jena.de</div>'
+        });
+
+
+        /*
+         * Enter Fullscreen Mode
+         */
+
+        timeline.push({
+            type: 'fullscreen',
+            fullscreen_mode: true,
+            message: '<div class="instruction"><div class="heading">Wichtige Hinweise</div><div class="smalltext"> Sobald du unten auf OK geklickt hast, wird das Experiment in den Vollbildmodus wechseln. Es ist wichtig, dass du während der Teilnahme nicht abgelenkt wirst. Suche dir bitte einen <strong>ruhigen</strong> Raum, in dem du die nächsten <strong>45 Minuten</strong> nicht gestört wirst. Wechsle während des Experiments nicht das Browserfenster und lege dein Telefon außer Sichtweite. <div> <div class="smalltext"> Wenn du das Experiment vorzeitig abbrechen möchtest, kannst du den Vollbildmodus durch Drücken der Tasten <span class="keyButton">Esc</span> oder <span class="keyButton">F11</span> verlassen und das Browserfenster schließen. In diesem Fall können deine bis dahin gemachten Eingaben leider nicht im Rahmen meiner Forschung verwendet werden und ich kann dir aus technischen Gründen auch keine Versuchspersonenstunde bescheinigen. </div></div>',
+            button_label: 'OK'
+        });
+
+
+        /*
+         * Ask for Participant Id And Sexual Orientation
+         */
+
+        var start = {
+            type: 'external-html',
+            url: 'start.html',
+            cont_btn: 'next',
+            check_fn: function ()
+            {
+                age = $('#age').val();
+
+                if (/^([1-9][0-9])$/.test(age))
+                {
+                    sex = $('#sex').val();
+                    orientation = $('#orientation').val();
+                    return true;
+                } else
+                {
+                    showAlert('Bitte gib dein Alter ein. Erlaubt sind Zahlen von 18 bis 99.');
+                    return false;
+                }
+            },
+            on_finish: function (data)
+            {
+                clearAlerts();
+                data.age = age;
+                data.sex = sex;
+                data.orientation = orientation;
+
+                if (orientation === 'hetero' && sex === 'male') {
+                    partner.sex = 'female';
+                    affair.sex = 'female';
+                    friend.sex = 'male';
+                } else if (orientation === 'hetero' && sex === 'female') {
+                    partner.sex = 'male';
+                    affair.sex = 'male';
+                    friend.sex = 'female';
+                } else if (orientation === 'homo' && sex === 'male') {
+                    partner.sex = 'male';
+                    affair.sex = 'male';
+                    friend.sex = 'female';
+                } else if (orientation === 'homo' && sex === 'female') {
+                    partner.sex = 'female';
+                    affair.sex = 'female';
+                    friend.sex = 'male';
+                }
+            }
+        };
+        timeline.push(start);
+
+
+        /*
+         * Name Partner
+         */
+
+        var name_partner = {
+            type: 'name',
+            title: function () {
+                if (partner.sex === 'male') {
+                    return "Wie heißt dein Partner?";
+                } else {
+                    return "Wie heißt deine Partnerin?";
+                }
+            },
+            instruction: function () {
+                if (partner.sex === 'male') {
+                    return "Bitte nenne den Vornamen deines Partners. Klicke anschließend auf Weiter.";
+                } else {
+                    return "Bitte nenne den Vornamen deiner Partnerin. Klicke anschließend auf Weiter.";
+                }
+            },
+            mistake_fn: function () {
+                showAlert('Bitte gib den Namen ein.');
+            },
+            on_finish: function (data) {
+                partner.name = data.name;
+                clearAlerts();
+            }
+        };
+        timeline.push(name_partner);
+
+
+        /*
+         * Select Friend (less attractive partners of unfitting orientation are used)
+         */
+
+        var name_friend = {
+            type: 'name',
+            title: function () {
+                if (friend.sex === 'male') {
+                    return "Wie heißt dein Freund?";
+                } else {
+                    return "Wie heißt deine Freundin?";
+                }
+            },
+            instruction: function () {
+                if (friend.sex === 'male') {
+                    return "Bitte nenne den Vornamen eines Freundes, den du seit längerem kennst. Stell dir vor, er würde in Hamburg wohnen. Klicke auf Weiter, nachdem du seinen Namen eingegeben hast.";
+                } else {
+                    return "Bitte nenne den Vornamen einer Freundin, die du seit längerem kennst. Stell dir vor, sie würde in Hamburg wohnen. Klicke auf Weiter, nachdem du ihren Namen eingegeben hast.";
+                }
+            },
+            mistake_fn: function () {
+                showAlert('Bitte gib den Namen ein.');
+            },
+            on_finish: function (data) {
+                friend.name = data.name;
+                clearAlerts();
+            }
+        };
+        timeline.push(name_friend);
+
+
+        /*
+         * Select Affair
+         */
+
+        var select_affair = {
+            type: 'faces',
+            title: function () {
+                return "Du hast eine Affäre!";
+            },
+            instruction: function () {
+                if (affair.sex === 'male') {
+                    return "Mit welchem der folgenden Männer könntest du eine Affäre haben? Wie könnte er heißen? Wähle eines der Bilder aus und vergib anschließend einen Vornamen. Stell dir vor, du würdest deinen Partner mit diesem Mann betrügen. Klicke dann bitte auf Weiter.";
+                } else {
+                    return "Mit welcher der folgenden Frauen könntest du eine Affäre haben? Wie könnte sie heißen? Wähle eines der Bilder aus und vergib anschließend einen Vornamen. Stell dir vor, du würdest deine Partnerin mit dieser Frau betrügen. Klicke dann bitte auf Weiter.";
+                }
+            },
+            faces: function () {
+                if (affair.sex === 'male') {
+                    return ['affair_m_1', 'affair_m_2', 'affair_m_3'];
+                } else {
+                    return ['affair_f_1', 'affair_f_2', 'affair_f_3'];
+                }
+            },
+            mistake_fn: function () {
+                showAlert('Bitte wähle ein Bild aus und gib einen Namen ein.');
+            },
+            on_finish: function (data) {
+                affair.name = data.name;
+                affair.image = data.selection;
+                clearAlerts();
+            }
+        };
+        timeline.push(select_affair);
+
+
+
+
+
+        // REMOVED FOR TESTING PURPOSES
+
+
+
+
+        /*
+         * Reaction Time Experiment Elements
+         */
+
+        var blank = {
+            type: 'html-keyboard-response',
+            stimulus: '',
+            choices: jsPsych.NO_KEYS,
+            trial_duration: 1000,
+            data: {rte_part: 'blank'}
+        };
+
+
+        var fixation = {
+            type: 'html-keyboard-response',
+            stimulus: '<div class="fixation">+</div>',
+            choices: jsPsych.NO_KEYS,
+            trial_duration: 400,
+            data: {rte_part: 'fixation'}
+        };
+
+
+        var image = {
+            type: 'html-keyboard-response',
+            stimulus: function(){
+                return '<div class="silhouette-'+partner.sex+'"></div>'; 
+            },
+            choices: jsPsych.NO_KEYS,
+            trial_duration: 400,
+            data: {rte_part: 'image'}
+        };
+
+
+        var question_introduction = {
+            type: 'html-keyboard-response',
+            stimulus: function () {
+                return '<div class="silhouette-'+partner.sex+'"> <div class="question-intro">' + partner.name + ' fragt</div> </div>';
+            },
+            choices: jsPsych.NO_KEYS,
+            trial_duration: 500,
+            data: {rte_part: 'fixation'}
+        };
+
+
+        var question = {
+            type: 'word-sequence',
+            stimulus: function () {
+                iteration = jsPsych.timelineVariable('iteration')();
+                question = tasks[iteration].question;
+                return question;
+            },
+            image: function () {
+                return partner.sex;
+            },
+            data: {rte_part: 'question'}
+        };
+
+
+        var target_introduction = {
+            type: "html-keyboard-response",
+            stimulus: function () {
+                iteration = jsPsych.timelineVariable('iteration')();
+                task = tasks[iteration];
+                targetWord = task.target;
+                stim = '<div class="silhouette-'+partner.sex+'"> <div class="target-intro">' + targetWord + '</div> </div>';
+                return stim;
+            },
+            trial_duration: 400,
+            choices: jsPsych.NO_KEYS,
+            data: {rte_part: 'target_introduction'},
+            on_finish: function (data)
+            {
+                iteration = jsPsych.timelineVariable('iteration')();
+                task = tasks[iteration];
+
+                data.rte_aggregated_trial_data = {
+                    action: task.action,
+                    question: task.question,
+                    congruency: task.congruency,
+                    secrecy: task.secrecy,
+                    target: task.target
+                };
+            }
+        };
+
+
+        var target_gonogo = {
+            type: "html-keyboard-response",
+            stimulus: function () {
+                iteration = jsPsych.timelineVariable('iteration')();
+                task = tasks[iteration];
+                targetWord = task.target;
+                stim = "";
+                if (task.action === "go")
+                {
+                    stim = '<div class="silhouette-'+partner.sex+'"> <div class="target-go">' + targetWord + '</div> </div>';
+                } else
+                {
+                    stim = '<div class="silhouette-'+partner.sex+'"> <div class="target-nogo">' + targetWord + '</div> </div>';
+                }
+
+                return stim;
+            },
+            trial_duration: 1000,
+            choices: [32],
+            data: {rte_part: 'target_gonogo'},
+            on_finish: function (data)
+            {
+                iteration = jsPsych.timelineVariable('iteration')();
+                task = tasks[iteration];
+
+                correct = undefined;
+                if (task.action === 'nogo')
+                {
+                    correct = (data.key_press === null);
+                } else
+                {
+                    correct = (data.key_press !== null);
+                }
+
+                // needed for tutorial
+                if (correct)
+                {
+                    continuousCorrects++;
+                } else
+                {
+                    continuousCorrects = 0;
+                }
+
+                data.rte_aggregated_trial_data = {
+                    action: task.action,
+                    question: task.question,
+                    congruency: task.congruency,
+                    secrecy: task.secrecy,
+                    target: task.target,
+                    correct: correct,
+                    rt: data.rt
+                };
+            }
+        };
+
+
+        var if_target_gonogo = {
+            timeline: [target_gonogo],
+            conditional_function: function () {
+
+
+                task = tasks[iteration];
+                if (task.action !== 'check')
+                {
+                    return true;
+                } else
+                {
+                    return false;
+                }
+            }
+        };
+
+
+        var target_check = {
+            type: 'html-keyboard-response',
+            stimulus: function () {
+                // ask participant about the last shown target
+
+
+                chance = 0.5;
+
+                quiz = [
+                    {question: 'Mit welcher Stadt steht das zuletzt gezeigte Wort in Verbindung?',
+                        secret: 'Berlin',
+                        nonsecret: 'Hamburg'},
+                    {question: 'Bezieht sich das zuletzt gezeigte Wort auf eine Information, die vor ' + partner.name + ' geheim gehalten werden sollte?',
+                        secret: 'Ja',
+                        nonsecret: 'Nein'},
+                    {question: 'Womit hat das zuletzt gezeigte Wort zu tun?',
+                        secret: 'Affäre',
+                        nonsecret: 'Freundschaft'}
+                ];
+
+                // random index 0..2
+                var randomIndex = Math.floor(Math.random() * 3);
+
+                stim = '';
+                stim += '<div class="heading">' + quiz[randomIndex].question + '</div>';
+                stim += '<div>Drücke die Tasten <span class="keyButton">1</span> oder <span class="keyButton">2</span> um deine Antwort auszuwählen.</div>';
+                stim += '<div class="rteAttentionCheckChoiceBlock">';
+                stim += '<div class="rteAttentionCheckChoice"><span class="keyButton">1</span><span class="rteAttentionCheckChoiceText">' + quiz[randomIndex].secret + '</span></div>';
+                stim += '<div class="rteAttentionCheckChoice"><span class="keyButton">2</span><span class="rteAttentionCheckChoiceText">' + quiz[randomIndex].nonsecret + '</span></div>';
+                stim += '<div>';
+                return stim;
+            },
+            choices: ['1', '2'],
+            data: {rte_part: 'target_check'},
+            on_load: function () {
+                //$('body').css('background-color', '#ccc');
+            },
+            on_finish: function (data) {
+                //$('body').css('background-color', '#fff');
+
+                //data = jsPsych.data.get().last(1).values()[0];
+                var isSecret = true;
+                if (jsPsych.data.get().last(2).values()[0].rte_aggregated_trial_data.secrecy !== 'secret') {
+                    var isSecret = false;
+                }
+                var classifiedAsSecret = true;
+                if ((data.key_press - 48) === 2)
+                {
+                    var classifiedAsSecret = false;
+                }
+
+                data.rte_aggregated_trial_data = {
+                    isSecret: isSecret,
+                    classifiedAsSecret: classifiedAsSecret,
+                    correct: true // always true to avoid target errors!
+                };
+
+            }
+        };
+
+
+        var if_target_check = {
+            timeline: [target_check],
+            conditional_function: function () {
+
+
+                task = tasks[iteration];
+                if (task.action === 'check')
+                {
+                    return true;
+                } else
+                {
+                    return false;
+                }
+            }
+        };
+
+
+
+        var target_error = {
+            type: 'html-keyboard-response',
+            stimulus: function () {
+                // show error message depending on last trial's action
+                data = jsPsych.data.get().last(1).values()[0];
+                if (data.rte_aggregated_trial_data.action === 'nogo') {
+                    errorHeading = 'Taste gedrückt!';
+                    errorMessage = 'Es war ein grünes Wort zu sehen. Du hättest keine Taste drücken dürfen.';
+                } else {
+                    errorHeading = 'Zu langsam!';
+                    errorMessage = 'Es war ein rotes Wort zu sehen. Du hättest schnell die Leertaste drücken müssen.';
+                }
+                return '<div class="rteError"><div class="rteErrorHeading">' + errorHeading + '</div><div class="rteErrorMessage">' + errorMessage + '</div><div class="rteErrorMessage">Drücke die <span class="keyButton">Leertaste</span> um fortzufahren.</div></div>';
+            },
+            choices: [32],
+            data: {rte_part: 'target_error'},
+            on_load: function () {
+                //$('body').css('background-color', '#ff5555');
+            },
+            on_finish: function () {
+                //$('body').css('background-color', '#fff');
+            }
+        };
+
+
+        var if_target_error = {
+            timeline: [target_error],
+            conditional_function: function () {
+                // start error trial if subject's action in last trial was not correct
+                data = jsPsych.data.get().last(1).values()[0];
+                if (data.rte_aggregated_trial_data.correct) {
+                    return false;
+                } else {
+                    return true;
+                }
+            }
+        };
+
+
+        var attention_check = {
+            type: 'html-keyboard-response',
+            stimulus: function () {
+                // ask participant about the last shown question
+
+                stim = '';
+                stim += '<div class="heading">Welche Frage wurde zuletzt gezeigt?</div>';
+                stim += '<div>Drücke eine der Tasten <span class="keyButton">1</span> bis <span class="keyButton">3</span> um die zuletzt gezeigte Frage auszuwählen.</div>';
+                stim += '<div class="rteAttentionCheckChoiceBlock">';
+                for (i = 0; i < questions.length; i++)
+                {
+                    stim += '<div class="rteAttentionCheckChoice"><span class="keyButton">' + (i + 1) + '</span><span class="rteAttentionCheckChoiceText">' + questions[i] + '</span></div>';
+                }
+                stim += '<div>';
+                return stim;
+            },
+            choices: ['1', '2', '3'],
+            data: {rte_part: 'attention_check'},
+            on_load: function () {
+                //$('body').css('background-color', '#ccc');
+            },
+            on_finish: function () {
+                //$('body').css('background-color', '#fff');
+            }
+        };
+
+
+        var if_attention_check = {
+            timeline: [attention_check],
+            conditional_function: function () {
+                // start attention check randomly with 20% chance (60% chance in tutorial) if last target was classified correctly and there was no target check
+                data = jsPsych.data.get().last(1).values()[0];
+                if (data.rte_part !== 'target_error' && data.rte_part !== 'target_check')
+                {
+                    chance = 0.1;
+                    if (tutorialRunning)
+                    {
+                        chance = 0.7;
+                    }
+
+                    if (Math.random() < chance)
+                    {
+                        return true;
+                    } else
+                    {
+                        return false;
+                    }
+                } else
+                {
+                    return false;
+                }
+            }
+        };
+
+
+        var attention_check_error = {
+            type: 'html-keyboard-response',
+            stimulus: function () {
+
+                errorHeading = 'Falsch!';
+                errorMessage = 'Die von dir ausgewählte Frage wurde nicht als letzte gezeigt. Achte in Zukunft besser auf die Fragen.';
+                return '<div class="rteError"><div class="rteErrorHeading">' + errorHeading + '</div><div class="rteErrorMessage">' + errorMessage + '</div><div class="rteErrorMessage">Drücke die <span class="keyButton">Leertaste</span> um fortzufahren.</div></div>';
+
+            },
+            choices: [32],
+            data: {rte_part: 'attention_check_error'},
+            on_finish: function () {
+                $('body').css('background-color', '#fff');
+            }
+        };
+
+
+        var if_attention_check_error = {
+            timeline: [attention_check_error],
+            conditional_function: function () {
+                // start error trial if subject's selection was wrong
+                data = jsPsych.data.get().last(1).values()[0];
+                if (data.rte_part === 'attention_check')
+                {
+                    shownQuestion = jsPsych.data.get().last(2).values()[0].rte_aggregated_trial_data.question;
+                    selectedQuestion = questions[jsPsych.data.get().last(1).values()[0].key_press - 49];
+                    if (shownQuestion !== selectedQuestion)
+                    {
+                        return true;
+                    } else
+                    {
+                        return false;
+                    }
+                } else
+                {
+                    return false;
+                }
+            }
+        };
+
+
+        /*
+         * Tutorial Reaction Time Experiment Briefing
+         */
+
+        var tutorial_instruction = {
+            type: 'html-keyboard-response',
+            stimulus: '<div class="instruction"><div class="heading">Aufgepasst!</div><div class="smalltext">Es werden gleich hintereinander eine Frage und ein einzelnes Wort in einem Rechteck erscheinen. Lies beide aufmerksam. Färbt sich das Wort im Rechteck rot, drücke so schnell wie möglich die <span class="keyButton">Leertaste</span> Färbt es sich dagegen grün, darfst du nicht reagieren. Das Ganze wird mehrfach wiederholt. Von Zeit zu Zeit wird zudem geprüft, ob du dich an die zuletzt gezeigte Frage sowie das Wort im Rechteck erinnern kannst.</div><div class="smalltext"> Drücke die <span class="keyButton">Leertaste</span> um einen Probelauf zu starten.<div>',
+            choices: [32],
+            data: {rte_part: 'tutorial_instruction'}
+        };
+        timeline.push(tutorial_instruction);
+
+
+        /*
+         * Tutorial Reaction Time Experiment
+         */
+
+        tutorialIterator = [
+            {iteration: 0},
+            {iteration: 140},
+            {iteration: 198},
+            {iteration: 0},
+            {iteration: 182}
+        ];
+
+        continuousCorrects = 0;
+        tutorialRunning = true;
+
+        var if_tutorial = {
+            timeline: [blank, fixation, image, question_introduction, question, target_introduction, if_target_check, if_target_gonogo, if_target_error, if_attention_check, if_attention_check_error],
+            timeline_variables: tutorialIterator,
+            randomize_order: false,
+            loop_function: function (data) {
+                // continue trial while not having completed 5 correct actions in a row
+                if (continuousCorrects < 4)
+                {
+                    return true;
+                } else
+                {
+                    return false;
+                }
+            },
+            on_finish: function () {
+                tutorialRunning = false;
+            }
+        };
+        timeline.push(if_tutorial);
+
+
+       
+        // REMOVED FOR TESTING PURPOSES
+       
+       
+
+        /*
+         * Debriefing
+         */
+
+        var debriefing = {
+            type: 'html-keyboard-response',
+            stimulus: '<div class="instruction"><div class="heading">Geschafft!</div><div class="smalltext">Vielen Dank für deine Teilnahme. Du hast mir sehr geholfen.</div><div class="smalltext" id="uploadinfo">Deine Eingaben werden nun anonymisiert und verschlüsselt übertragen. Dies kann bis zu einer Minute dauern.</div><img id="uploadimage" src="img/symbols/spinner.gif" alt="Übertragung läuft"><div class="smalltext" id="particitext"></div><div class="smalltext" id="particicode"></div><button class="navbutton" type="button" id="downloadbutton" style="display: none;" onclick="triggerDataDownload();">Daten speichern</button><div class="smalltext" id="finishtext" style="display: none;">Du kannst den Vollbildmodus durch Drücken der Tasten <span class="keyButton">Esc</span> oder <span class="keyButton">F11</span> verlassen und das Browserfenster dann einfach schließen.</div></div>',
+            choices: jsPsych.NO_KEYS,
+            on_load: function () {
+                // wait 3s before upload for visualization purposes
+                setTimeout(function () {
+                    save(jsPsych.data.get().csv());
+                }, 3000);
+            }
+        };
+        timeline.push(debriefing);
+
+
+        /*
+         * Save Data Routine
+         */
+
+        function save(data) {
+            // local url: http://localhost:8080/save
+            // heroku url: https://rtebackend.herokuapp.com/save
+            $.ajax({
+                type: "POST",
+                url: "https://rtebackend.herokuapp.com/save",
+                data: data,
+                contentType: 'text/plain',
+                timeout: 60000
+            }).done(function (response) {
+
+                $('#experiment').css('cursor', 'auto');
+
+                var idcode = JSON.parse(response).result;
+                if (idcode !== null)
+                {
+                    saveSuccess(idcode);
+                } else
+                {
+                    saveFailure();
+                }
+            }).fail(function (response) {
+                saveFailure();
+            });
+        }
+
+        function saveSuccess(idcode)
+        {
+            $('#uploadinfo').text('Deine Daten wurden erfolgreich anonymisiert und verschlüsselt übertragen.');
+            $('#uploadinfo').css('color', '#ffffff');
+            $('#uploadinfo').css('background-color', '#51ca90');
+            $('#uploadinfo').css('border-radius', '10px');
+
+            $('#uploadimage').hide();
+
+            $('#particitext').text('Falls du eine Versuchspersonenstunde benötigst und/oder an der Verlosung teilnehmen möchtest, notiere dir bitte folgenden Code und sende ihn an philipp.sprengholz@uni-jena.de.');
+            $('#particicode').text(idcode);
+
+            $('#finishtext').show();
+        }
+
+        function saveFailure()
+        {
+            $('#uploadinfo').text('Es trat ein Fehler beim Senden deiner Daten auf.');
+            $('#uploadinfo').css('color', '#ffffff');
+            $('#uploadinfo').css('background-color', '#ff6060');
+            $('#uploadinfo').css('border-radius', '10px');
+
+            $('#uploadimage').hide();
+
+            $('#particitext').html('Wegen des Fehlers benötige ich deine Hilfe. <strong>Bitte speichere deine Daten über den folgenden Button und sende sie anschließend als E-Mail-Anhang an philipp.sprengholz@uni-jena.de.</strong> Solltest du die Bestätigung einer Versuchspersonenstunde wünschen und/oder an der Verlosung teilnehmen wollen, teile mir dies bitte auch in der E-Mail mit. Deine E-Mail-Adresse und alle weiteren Daten werden natürlich vertraulich behandelt.');
+            $('#particicode').hide();
+
+            $('#downloadbutton').show();
+        }
+
+        function triggerDataDownload() {
+            download(jsPsych.data.get().csv(), "data.csv", "text/plain");
+            $('#finishtext').show();
+        }
+
+
+        /*
+         * Start Experiment
+         */
+
+        jsPsych.init({
+            display_element: 'experiment',
+            timeline: timeline,
+            on_finish: function () {
+                // never reached since last trial never finishes
+
+                // for testing purposes: show experiment data at the end
+                jsPsych.data.displayData();
+            }
+        });
+
+    </script>
+</html>
